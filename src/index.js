@@ -1,232 +1,189 @@
 import { GraphQLServer } from "graphql-yoga";
-import uuidv4 from "uuid/v4";
 
-// Scalar types - String, Boolean, Int, Float, ID
+// Type definitions / Schema
 
-// Demo user data
-const users = [
+// Available scalar (atomic) types:
+// - String
+// - Boolean
+// - Int
+// - Float
+// - ID
+
+////////////////////////////////////
+// Using Basic Types
+////////////////////////////////////
+
+// const typeDefinitions = `
+//   type Query {
+//     id: ID!
+//     name: String!
+//     age: Int!
+//     employed: Boolean!
+//     gpa: Float
+//   }
+// `;
+
+// Resolvers (Basically controllers)
+// const resolvers = {
+//   Query: {
+//     id() {
+//       return "abc123";
+//     },
+//     name() {
+//       return "Daksh";
+//     },
+//     age() {
+//       return 21;
+//     },
+//     employed() {
+//       return true;
+//     },
+//     gpa() {
+//       return null;
+//     },
+//   },
+// };
+
+//////////////////////////////////
+// Using custom types and operation arguments
+//////////////////////////////////
+
+const typeDefinitions = `
+  type Query {
+    me: User
+    post: Post
+    greeting(name: String): String
+    grades: [Int!]!
+    add(numbers: [Int!]!): Int
+    users: [User!]!
+    posts: [Post!]!
+  }
+
+  type User {
+    id: ID!
+    name: String!
+    email: String!
+    age: Int! 
+  }
+
+  type Post {
+    id: ID!
+    title: String!
+    body: String!
+    published: String!
+    author: User!
+  }
+`;
+
+// Dummy data
+const Users = [
   {
     id: "1",
-    name: "Andrew",
-    email: "andrew@example.com",
-    age: 27,
+    name: "Dex",
+    age: 21,
+    email: "dex@gmail.com",
   },
   {
     id: "2",
-    name: "Sarah",
-    email: "sarah@example.com",
+    name: "Not Dex",
+    email: "notdex@gmail.com",
+    age: 21,
   },
   {
     id: "3",
-    name: "Mike",
-    email: "mike@example.com",
+    name: "Shishimanu",
+    email: "shishimanu@gmail.com",
+    age: 42,
   },
 ];
 
-const posts = [
-  {
-    id: "10",
-    title: "GraphQL 101",
-    body: "This is how to use GraphQL...",
-    published: true,
-    author: "1",
-  },
+const Posts = [
   {
     id: "11",
-    title: "GraphQL 201",
-    body: "This is an advanced GraphQL post...",
-    published: false,
+    title: "Just a book",
+    body: "A book that is just a book",
+    published: "2011",
     author: "1",
   },
   {
     id: "12",
-    title: "Programming Music",
-    body: "",
-    published: false,
+    title: "Just another book",
+    body: "A book that is just another book",
+    published: "2012",
     author: "2",
   },
-];
-
-const comments = [
   {
-    id: "102",
-    text: "This worked well for me. Thanks!",
+    id: "13",
+    title: "Yet another book",
+    body: "A book that is yet another book",
+    published: "2013",
     author: "3",
-    post: "10",
-  },
-  {
-    id: "103",
-    text: "Glad you enjoyed it.",
-    author: "1",
-    post: "10",
-  },
-  {
-    id: "104",
-    text: "This did no work.",
-    author: "2",
-    post: "11",
-  },
-  {
-    id: "105",
-    text: "Nevermind. I got it to work.",
-    author: "1",
-    post: "11",
   },
 ];
 
-// Type definitions (schema)
-const typeDefs = `
-    type Query {
-        users(query: String): [User!]!
-        posts(query: String): [Post!]!
-        comments: [Comment!]!
-        me: User!
-        post: Post!
-    }
-
-    type Mutation {
-        createUser(name: String!, email: String!, age: Int): User!
-    }
-
-    type User {
-        id: ID!
-        name: String!
-        email: String!
-        age: Int
-        posts: [Post!]!
-        comments: [Comment!]!
-    }
-
-    type Post {
-        id: ID!
-        title: String!
-        body: String!
-        published: Boolean!
-        author: User!
-        comments: [Comment!]!
-    }
-
-    type Comment {
-        id: ID!
-        text: String!
-        author: User!
-        post: Post!
-    }
-`;
-
-// Resolvers
 const resolvers = {
-  // QUERIES
   Query: {
-    users(parent, args, ctx, info) {
-      if (!args.query) {
-        return users;
-      }
-
-      return users.filter((user) => {
-        return user.name.toLowerCase().includes(args.query.toLowerCase());
-      });
-    },
-    posts(parent, args, ctx, info) {
-      if (!args.query) {
-        return posts;
-      }
-
-      return posts.filter((post) => {
-        const isTitleMatch = post.title
-          .toLowerCase()
-          .includes(args.query.toLowerCase());
-        const isBodyMatch = post.body
-          .toLowerCase()
-          .includes(args.query.toLowerCase());
-        return isTitleMatch || isBodyMatch;
-      });
-    },
-    comments(parent, args, ctx, info) {
-      return comments;
-    },
     me() {
       return {
-        id: "123098",
+        id: "abc123",
         name: "Mike",
         email: "mike@example.com",
+        age: 28,
       };
     },
     post() {
       return {
-        id: "092",
-        title: "GraphQL 101",
-        body: "",
-        published: false,
+        id: "abc123",
+        title: "New Book",
+        body: "A good book",
+        published: "2001",
       };
     },
-  },
-  //
-  // MUTATIONS
-  //
-  Mutation: {
-    createUser(parent, args, ctx, info) {
-      const emailTaken = users.some((user) => user.email === args.email);
-
-      if (emailTaken) {
-        throw new Error("Email taken");
+    users() {
+      return Users;
+    },
+    posts() {
+      return Posts;
+    },
+    // Four arguments are passed to all resolvers
+    // args: holds the arguments
+    // parent: holds data for, say, a parent query
+    // ctx: used to pass context data like, say, user logged in state
+    // info: info regarding actual actions sent to the server
+    greeting(parent, args, ctx, info) {
+      if (!args.name) {
+        return "Hello, stranger";
+      } else {
+        return `Hello, ${args.name}`;
       }
-
-      const user = {
-        id: uuidv4(),
-        name: args.name,
-        email: args.email,
-        age: args.age,
-      };
-
-      users.push(user);
-
-      return user;
+    },
+    grades() {
+      return [9, 10, 11, 12];
+    },
+    add(parent, args, ctx, info) {
+      let sum = 0;
+      args.numbers.forEach((number) => {
+        sum += number;
+      });
+      return sum;
     },
   },
   Post: {
     author(parent, args, ctx, info) {
-      return users.find((user) => {
+      return Users.find((user) => {
         return user.id === parent.author;
-      });
-    },
-    comments(parent, args, ctx, info) {
-      return comments.filter((comment) => {
-        return comment.post === parent.id;
-      });
-    },
-  },
-  Comment: {
-    author(parent, args, ctx, info) {
-      return users.find((user) => {
-        return user.id === parent.author;
-      });
-    },
-    post(parent, args, ctx, info) {
-      return posts.find((post) => {
-        return post.id === parent.post;
-      });
-    },
-  },
-  User: {
-    posts(parent, args, ctx, info) {
-      return posts.filter((post) => {
-        return post.author === parent.id;
-      });
-    },
-    comments(parent, args, ctx, info) {
-      return comments.filter((comment) => {
-        return comment.author === parent.id;
       });
     },
   },
 };
 
+// Create graphql server
 const server = new GraphQLServer({
-  typeDefs,
-  resolvers,
+  typeDefs: typeDefinitions,
+  resolvers: resolvers,
 });
 
 server.start(() => {
-  console.log("The server is up!");
+  console.log("Server up on default port");
+  // Default port: 4000
 });
