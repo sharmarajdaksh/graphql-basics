@@ -68,10 +68,10 @@ const Mutation = {
 
     return user;
   },
-  createPost(parent, args, { db }, info) {
+  createPost(parent, args, { pubsub, db }, info) {
     const userExists = db.users.some((user) => user.id == args.data.author);
 
-    if (userExists) {
+    if (!userExists) {
       throw new Error("User not found");
     }
 
@@ -81,6 +81,15 @@ const Mutation = {
     };
 
     db.posts.push(post);
+
+    if (post.published) {
+      pubsub.publish("post", {
+        post: {
+          mutation: "CREATED",
+          data: post,
+        },
+      });
+    }
 
     return post;
   },
@@ -95,10 +104,20 @@ const Mutation = {
 
     db.comments = db.comments.filter((comment) => comment.post !== args.id);
 
+    if (deletedPosts[0].published) {
+      pubsub.publish("post", {
+        post: {
+          mutation: "DELETED",
+          data: post,
+        },
+      });
+    }
+
     return deletedPosts[0];
   },
   updatePost(parent, args, { db }, info) {
     const post = db.posts.find((post) => post.id === args.id);
+    const originalPost = { ...post };
 
     if (!post) {
       throw new Error("Post not found");
@@ -114,11 +133,40 @@ const Mutation = {
 
     if (typeof args.data.published === "boolean") {
       post.published = args.data.published;
+
+      if (originalPost.published && !post.published) {
+        if (post.published) {
+          pubsub.publish("post", {
+            post: {
+              mutation: "DELETED",
+              data: originalPost,
+            },
+          });
+        }
+      } else if (!originalPost.published && post.published) {
+        if (post.published) {
+          pubsub.publish("post", {
+            post: {
+              mutation: "CREATED",
+              data: post,
+            },
+          });
+        }
+      } else if (post.published) {
+        if (post.published) {
+          pubsub.publish("post", {
+            post: {
+              mutation: "UPDATED",
+              data: post,
+            },
+          });
+        }
+      }
     }
 
     return post;
   },
-  createComment(parent, args, { db }, info) {
+  createComment(parent, args, { db, pubsub }, info) {
     const userExists = db.users.some((user) => user.id === args.data.author);
     if (!userExists) {
       throw new Error("User not found");
@@ -136,9 +184,17 @@ const Mutation = {
 
     db.comments.push(comment);
 
+    // Publish to comment subscription
+    pubsub.publish(`comment ${args.data.post}`, {
+      comment: {
+        mutation: "CREATED",
+        data: comment,
+      },
+    });
+
     return comment;
   },
-  deleteComment(parent, args, { db }, info) {
+  deleteComment(parent, args, { db, pubsub }, info) {
     const commentIndex = db.comments.find((comment) => comment.id === args.id);
 
     if (commentIndex === -1) {
@@ -147,9 +203,16 @@ const Mutation = {
 
     const deletedComments = db.comments.splice(commentIndex, 1);
 
-    return deleteComments[0];
+    pubsub.publish(`comment ${args.data.post}`, {
+      comment: {
+        mutation: "DELETED",
+        data: deletedComments[0],
+      },
+    });
+
+    return deletedComments[0];
   },
-  updateComment(parent, args, { db }, info) {
+  updateComment(parent, args, { db, pubsub }, info) {
     const comment = db.comments.find((comment) => comment.id === args.id);
 
     if (!comment) {
@@ -159,6 +222,13 @@ const Mutation = {
     if (typeof args.data.text === "string") {
       comment.text = args.data.text;
     }
+
+    pubsub.publish(`comment ${args.data.post}`, {
+      comment: {
+        mutation: "UPDATED",
+        data: comment,
+      },
+    });
 
     return comment;
   },
