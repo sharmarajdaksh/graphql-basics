@@ -1,0 +1,2 @@
+docker run --name postgres -e POSTGRES_PASSWORD=postgrespassword -v graphqlpostgres:/var/lib/postgresql/data -d --network=host postgres 
+docker run --name pgadmin -e PGADMIN_DEFAULT_PASSWORD=postgrespassword -e PGADMIN_DEFAULT_EMAIL=sharmarajdaksh@gmail.com -d --network=host dpage/pgadmin4
